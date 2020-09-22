@@ -9,5 +9,7 @@ services:
       accessKeyId: xxx
       accessSecret: xxx
       KeyPrefix: super_blacklist:*
-      redisURL: redis://localhost:6379/0
+      redisURL: redis://redis:6379/0
       Domain: www.baidu.com
+  redis:
+    image: redis:3.2-alpine
