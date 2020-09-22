@@ -1,6 +1,6 @@
 # aliwaf auto set blacklist
 
-## Dependence
+## Dependences
 - go 1.14
 - docker
 - docker-compose
