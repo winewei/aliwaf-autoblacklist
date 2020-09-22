@@ -1,0 +1,13 @@
+version: "3"
+services:
+  aliwaf-autoblacklist:
+    build:
+      context: .
+    image: aliwaf-autoblacklist
+    environment:
+      wafRegion: cn-hangzhou
+      accessKeyId: xxx
+      accessSecret: xxx
+      KeyPrefix: super_blacklist:*
+      redisURL: redis://localhost:6379/0
+      Domain: www.baidu.com

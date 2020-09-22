@@ -1,0 +1,30 @@
+if: branch =~ ^master$|^test
+language: bash
+services: docker
+
+install:
+  - echo "skip"
+
+script: |-
+  set -e
+  if [ "${TRAVIS_BRANCH}" == "master" ]; then
+    export image_tags=(
+      "${DOCKER_REPO}"
+      "${DOCKER_REPO}:v1.1"
+    )
+    export deploy_script="docker push ${image_tags[0]} && docker push ${image_tags[1]}"
+  fi
+  for tag in ${image_tags[@]};
+  do
+    docker build -t $tag .
+  done
+after_script:
+  - docker images
+
+deploy:
+  - provider: script
+    script: >-
+      docker login --username ${DOCKER_USER} --password ${DOCKER_PASSWORD}
+      && ${deploy_script}
+    on:
+      all_branches: true
