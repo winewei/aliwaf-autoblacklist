@@ -11,5 +11,6 @@ services:
       KeyPrefix: super_blacklist:*
       redisURL: redis://redis:6379/0
       Domain: www.baidu.com
+      Interval: 2
   redis:
     image: redis:3.2-alpine

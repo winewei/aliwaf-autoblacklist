@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"github.com/go-redis/redis/v8"
 	waf_openapi "github.com/aliyun/alibaba-cloud-sdk-go/services/waf-openapi"
+	"github.com/go-redis/redis/v8"
 	"log"
 	"os"
+	"strconv"
 	"time"
+
+	//"time"
 )
 
 var ctx = context.Background()
@@ -96,16 +99,18 @@ func main() {
 	Domain := GetEnvDefault("Domain", "localhost")
 	KeyPrefix := GetEnvDefault("KeyPrefix", "super_blacklist:*")
 	redisURL := GetEnvDefault("redisURL", "redis://localhost:6379/0")
+	Interval, _ := strconv.Atoi(GetEnvDefault("Interval", "5"))
 
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
 		panic(err)
 	}
 
-	log.Println("sys_info:", Domain, wafRegion, KeyPrefix, redisURL)
+	log.Println("sys_info:", Domain, wafRegion, KeyPrefix, redisURL, "Interval:", Interval)
 
 	rdb := redis.NewClient(opt)
 	defer rdb.Close()
+	steps := 0
 	for {
 		go func() {
 			var Ipaddress = []string{}
@@ -150,8 +155,7 @@ func main() {
 			new_waf_blacklist, _ := rdb.Get(ctx, "new_waf_blacklist").Result()
 			old_waf_blacklist, _ := rdb.Get(ctx, "old_waf_blacklist").Result()
 			if old_waf_blacklist != new_waf_blacklist {
-				log.Println("new_waf_blacklist:", new_waf_blacklist)
-				log.Println("old_waf_blacklist", old_waf_blacklist)
+				log.Println("new_waf_blacklist:", new_waf_blacklist, "old_waf_blacklist:", old_waf_blacklist)
 				// update old_waf_blacklist from new_waf_blacklist
 				rdb.Set(ctx, "old_waf_blacklist", new_waf_blacklist, 0)
 				go Waf_blacklist(new_waf_blacklist, Domain, wafRegion,accessKeyId, accessSecret)
@@ -159,7 +163,11 @@ func main() {
 			}
 		}
 
-		time.Sleep(time.Second * 5)
-		log.Println("Next cycle ...")
+		time.Sleep(time.Second * time.Duration(Interval))
+		if steps == 20 {
+			log.Println("Next 20 cycles ...")
+			steps = 0
+		}
+		steps += 1
 	}
 }
