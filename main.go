@@ -9,8 +9,6 @@ import (
 	"os"
 	"strconv"
 	"time"
-
-	//"time"
 )
 
 var ctx = context.Background()
@@ -89,6 +87,16 @@ func GetEnvDefault(key, defVal string) string {
 		return defVal
 	}
 	return val
+}
+
+func init()  {
+	os.Mkdir("./logs", 0755)
+	file := "./" + "logs/aliwaf-autoblacklist.txt"
+	logFile, err := os.OpenFile(file, os.O_RDWR | os.O_CREATE|os.O_APPEND, 0766)
+	if err != nil {
+		panic(err)
+	}
+	log.SetOutput(logFile)
 }
 
 func main() {
