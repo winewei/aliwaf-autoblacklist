@@ -12,5 +12,7 @@ services:
       redisURL: redis://redis:6379/0
       Domain: www.baidu.com
       Interval: 2
+    volumes:
+    - "./logs:/srv/logs"
   redis:
     image: redis:3.2-alpine
