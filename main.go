@@ -3,91 +3,16 @@ package main
 import (
 	"context"
 	"encoding/json"
-	waf_openapi "github.com/aliyun/alibaba-cloud-sdk-go/services/waf-openapi"
 	"github.com/go-redis/redis/v8"
 	"log"
 	"os"
 	"strconv"
 	"time"
+	. "aliwaf-blacklist/pkg/utils"
+	. "aliwaf-blacklist/pkg/aliyun"
 )
 
 var ctx = context.Background()
-
-func Waf_blacklist(Rule, Domain,wafRegion, accessKeyId, accessSecret  string) () {
-	client, err := waf_openapi.NewClientWithAccessKey(wafRegion, accessKeyId, accessSecret)
-
-	// get InstanceId
-	instanceid_request := waf_openapi.CreateDescribeInstanceInfoRequest()
-	instanceid_request.Scheme = "https"
-	instanceid_response, err := client.DescribeInstanceInfo(instanceid_request)
-	InstanceId := instanceid_response.InstanceInfo.InstanceId
-
-	log.Println("waf_InstanceId:", instanceid_response.InstanceInfo.InstanceId)
-	log.Println("Domain: ", Domain)
-
-	// update waf blacklist
-	request := waf_openapi.CreateModifyProtectionModuleRuleRequest()
-	request.Scheme = "https"
-
-	request.Domain = Domain
-	request.DefenseType = "ac_blacklist"
-	request.Rule = Rule
-	request.LockVersion = "1"
-	request.InstanceId = InstanceId
-
-	response, err := client.ModifyProtectionModuleRule(request)
-	if err != nil {
-		log.Println(err.Error())
-	}
-	log.Println(response)
-}
-
-// 去重 https://blog.csdn.net/qq_27068845/article/details/77407358
-func RemoveRepByMap(slc []string) []string {
-	result := []string{}
-	tempMap := map[string]byte{}
-	for _, e := range slc{
-		l := len(tempMap)
-		tempMap[e] = 0
-		if len(tempMap) != l{
-			result = append(result, e)
-		}
-	}
-	return result
-}
-
-func RemoveRepByLoop(slc []string) []string {
-	result := []string{}
-	for i := range slc{
-		flag := true
-		for j := range result{
-			if slc[i] == result[j] {
-				flag = false
-				break
-			}
-		}
-		if flag {
-			result = append(result, slc[i])
-		}
-	}
-	return result
-}
-
-func RemoveRep(slc []string) []string{
-	if len(slc) < 1024 {
-		return RemoveRepByLoop(slc)
-	}else {
-		return RemoveRepByMap(slc)
-	}
-}
-
-func GetEnvDefault(key, defVal string) string {
-	val, ex := os.LookupEnv(key)
-	if !ex {
-		return defVal
-	}
-	return val
-}
 
 func init()  {
 	os.Mkdir("./logs", 0755)
