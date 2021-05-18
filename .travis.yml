@@ -10,7 +10,7 @@ script: |-
   if [ "${TRAVIS_BRANCH}" == "master" ]; then
     export image_tags=(
       "${DOCKER_REPO}"
-      "${DOCKER_REPO}:v1.2"
+      "${DOCKER_REPO}:v1.3"
     )
     export deploy_script="docker push ${image_tags[0]} && docker push ${image_tags[1]}"
   fi
