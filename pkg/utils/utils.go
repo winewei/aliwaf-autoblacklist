@@ -1,5 +1,7 @@
 package utils
 
+import "os"
+
 // 去重 https://blog.csdn.net/qq_27068845/article/details/77407358
 func RemoveRepByLoop(slc []string) []string {
 	result := []string{}
@@ -37,4 +39,12 @@ func RemoveRepByMap(slc []string) []string {
 		}
 	}
 	return result
+}
+
+func GetEnvDefault(key, defVal string) string {
+	val, ex := os.LookupEnv(key)
+	if !ex {
+		return defVal
+	}
+	return val
 }

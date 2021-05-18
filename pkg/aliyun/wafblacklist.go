@@ -1,6 +1,7 @@
 package aliyun
 
 import (
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	waf_openapi "github.com/aliyun/alibaba-cloud-sdk-go/services/waf-openapi"
 	"log"
 )
@@ -9,13 +10,28 @@ func Waf_blacklist(Rule, Domain,wafRegion, accessKeyId, accessSecret  string) ()
 	client, err := waf_openapi.NewClientWithAccessKey(wafRegion, accessKeyId, accessSecret)
 
 	// get InstanceId
-	instanceid_request := waf_openapi.CreateDescribeInstanceInfoRequest()
-	instanceid_request.Scheme = "https"
-	instanceid_response, err := client.DescribeInstanceInfo(instanceid_request)
-	InstanceId := instanceid_response.InstanceInfo.InstanceId
+	instanceidRequest := waf_openapi.CreateDescribeInstanceInfoRequest()
+	instanceidRequest.Scheme = "https"
+	instanceidResponse, err := client.DescribeInstanceInfo(instanceidRequest)
+	if err != nil {
+		log.Println(err.Error())
+	}
+	InstanceId := instanceidResponse.InstanceInfo.InstanceId
 
-	log.Println("waf_InstanceId:", instanceid_response.InstanceInfo.InstanceId)
+	log.Println("waf_InstanceId:", instanceidResponse.InstanceInfo.InstanceId)
 	log.Println("Domain: ", Domain)
+
+	// get ruleid
+	ruleidReq := waf_openapi.CreateDescribeProtectionModuleRulesRequest()
+	ruleidReq.Scheme = "https"
+	ruleidReq.InstanceId = InstanceId
+	ruleidReq.Domain = Domain
+	ruleidReq.DefenseType = "ac_blacklist"
+	ruleidResponse, err := client.DescribeProtectionModuleRules(ruleidReq)
+	log.Println(ruleidResponse)
+	if err != nil {
+		log.Println(err.Error())
+	}
 
 	// update waf blacklist
 	request := waf_openapi.CreateModifyProtectionModuleRuleRequest()
@@ -24,8 +40,9 @@ func Waf_blacklist(Rule, Domain,wafRegion, accessKeyId, accessSecret  string) ()
 	request.Domain = Domain
 	request.DefenseType = "ac_blacklist"
 	request.Rule = Rule
-	request.LockVersion = "1"
+	request.LockVersion = requests.NewInteger(int(ruleidResponse.Rules[0].Version))
 	request.InstanceId = InstanceId
+	request.RuleId  = requests.NewInteger(int(ruleidResponse.Rules[0].RuleId))
 
 	response, err := client.ModifyProtectionModuleRule(request)
 	if err != nil {
