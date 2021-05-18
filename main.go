@@ -76,23 +76,23 @@ func main() {
 				}
 			}
 			tempMap["remoteAddr"] = RemoveRep(Ipaddress)
-			t_data, _ := json.Marshal(tempMap)
+			tData, _ := json.Marshal(tempMap)
 
-			rdb.Set(ctx,"new_waf_blacklist", t_data, 0)
+			rdb.Set(ctx,"new_waf_blacklist", tData, 0)
 			//log.Println("new_waf_blacklist:", string(t_data))
 		}()
 
 		// waf black
-		is_waf_black, _ := rdb.Get(ctx, "enable_waf_black").Result()
-		if is_waf_black == "1" {
-			new_waf_blacklist, _ := rdb.Get(ctx, "new_waf_blacklist").Result()
-			old_waf_blacklist, _ := rdb.Get(ctx, "old_waf_blacklist").Result()
-			if old_waf_blacklist != new_waf_blacklist {
-				log.Println("new_waf_blacklist:", new_waf_blacklist, "old_waf_blacklist:", old_waf_blacklist)
+		isWafBlack, _ := rdb.Get(ctx, "enable_waf_black").Result()
+		if isWafBlack == "1" {
+			newWafBlacklist, _ := rdb.Get(ctx, "new_waf_blacklist").Result()
+			oldWafBlacklist, _ := rdb.Get(ctx, "old_waf_blacklist").Result()
+			if oldWafBlacklist != newWafBlacklist {
+				log.Println("new_waf_blacklist:", newWafBlacklist, "old_waf_blacklist:", oldWafBlacklist)
 				// update old_waf_blacklist from new_waf_blacklist
-				rdb.Set(ctx, "old_waf_blacklist", new_waf_blacklist, 0)
-				go Waf_blacklist(new_waf_blacklist, Domain, wafRegion,accessKeyId, accessSecret)
-				log.Println("waf_blacklist:", new_waf_blacklist)
+				rdb.Set(ctx, "old_waf_blacklist", newWafBlacklist, 0)
+				go Waf_blacklist(newWafBlacklist, Domain, wafRegion,accessKeyId, accessSecret)
+				log.Println("waf_blacklist:", newWafBlacklist)
 			}
 		}
 
