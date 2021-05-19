@@ -16,7 +16,7 @@ var ctx = context.Background()
 
 func init()  {
 	os.Mkdir("./logs", 0755)
-	file := "./" + "logs/aliwaf-autoblacklist.txt"
+	file := "./" + "logs/aliwaf-autoblacklist.log"
 	logFile, err := os.OpenFile(file, os.O_RDWR | os.O_CREATE|os.O_APPEND, 0766)
 	if err != nil {
 		panic(err)

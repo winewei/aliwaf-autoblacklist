@@ -28,22 +28,20 @@ func Waf_blacklist(Rule, Domain,wafRegion, accessKeyId, accessSecret  string) ()
 	ruleidReq.Domain = Domain
 	ruleidReq.DefenseType = "ac_blacklist"
 	ruleidResponse, err := client.DescribeProtectionModuleRules(ruleidReq)
-	log.Println(ruleidResponse)
+	log.Println("waf_blacklist_info:", ruleidResponse.GetHttpContentString())
 	if err != nil {
-		log.Println(err.Error())
+		log.Println(err)
 	}
 
 	// update waf blacklist
 	request := waf_openapi.CreateModifyProtectionModuleRuleRequest()
 	request.Scheme = "https"
-
 	request.Domain = Domain
 	request.DefenseType = "ac_blacklist"
 	request.Rule = Rule
-	request.LockVersion = requests.NewInteger(int(ruleidResponse.Rules[0].Version))
+	request.LockVersion = requests.NewInteger(1)
 	request.InstanceId = InstanceId
 	request.RuleId  = requests.NewInteger(int(ruleidResponse.Rules[0].RuleId))
-
 	response, err := client.ModifyProtectionModuleRule(request)
 	if err != nil {
 		log.Println(err.Error())
