@@ -5,12 +5,10 @@ services:
       context: .
     image: aliwaf-autoblacklist
     environment:
-      wafRegion: cn-hangzhou
       accessKeyId: xxx
       accessSecret: xxx
       KeyPrefix: super_blacklist:*
       redisURL: redis://redis:6379/0
-      Domain: www.baidu.com
       Interval: 2
     volumes:
     - "./logs:/srv/logs"

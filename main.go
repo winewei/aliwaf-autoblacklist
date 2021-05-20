@@ -7,9 +7,10 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
-	. "aliwaf-blacklist/pkg/utils"
-	. "aliwaf-blacklist/pkg/aliyun"
+	. "github.com/winewei/aliwaf-autoblacklist/pkg/utils"
+	. "github.com/winewei/aliwaf-autoblacklist/pkg/aliyun"
 )
 
 var ctx = context.Background()
@@ -26,10 +27,10 @@ func init()  {
 
 func main() {
 	// take credentials from sys environment
-	wafRegion := GetEnvDefault("wafRegion", "cn-hangzhou")
+	//wafRegion := GetEnvDefault("wafRegion", "cn-hangzhou")
 	accessKeyId := GetEnvDefault("accessKeyId", "xxx")
 	accessSecret := GetEnvDefault("accessSecret", "sss")
-	Domain := GetEnvDefault("Domain", "localhost")
+	//Domain := GetEnvDefault("Domain", "localhost")
 	KeyPrefix := GetEnvDefault("KeyPrefix", "super_blacklist:*")
 	redisURL := GetEnvDefault("redisURL", "redis://localhost:6379/0")
 	Interval, _ := strconv.Atoi(GetEnvDefault("Interval", "5"))
@@ -39,35 +40,29 @@ func main() {
 		panic(err)
 	}
 
-	log.Println("sys_info:", Domain, wafRegion, KeyPrefix, redisURL, "Interval:", Interval)
+	log.Println("sys_info:", "accessKeyId:", accessKeyId, "match:", KeyPrefix, "redis:", redisURL, "Interval:", Interval)
 
 	rdb := redis.NewClient(opt)
 	defer rdb.Close()
 	steps := 0
 	for {
+		// collect all domains from black keys
+		tmpPre := strings.Split(KeyPrefix, ":")
+		BasePrefix := tmpPre[0]
 		go func() {
-			var Ipaddress = []string{}
-			type M map[string]interface{}
-			tempMap := make(M)
+			var DL []string
 			for {
 				keys, cursor, err  := rdb.Scan(ctx,0, KeyPrefix, 200).Result()
 				if err != nil {
-					log.Println(err.Error())
+					log.Println(err)
 				}
-				// if blacklist not 0, will enable waf blacklist
 				if len(keys) > 0 {
-					rdb.Set(ctx, "enable_waf_black", 1, 0)
 					for _, i := range keys {
-						val, err := rdb.Get(ctx, i).Result()
-						if err != nil{
-							log.Println(err.Error())
-						}
-						//log.Println("found_black_key:", i, "value:", val)
-						// waf blacklist max lenth is 200
-						if len(Ipaddress) <= 200 {
-							Ipaddress = append(Ipaddress, val)
+						v := strings.Split(i, ":")
+						if len(v) == 3 {
+							DL = append(DL, v[1])
 						} else {
-							log.Println("out of max blacklist lenth 200:", val)
+							log.Println("DomainList got illegality redis key:", i)
 						}
 					}
 				}
@@ -75,26 +70,66 @@ func main() {
 					break
 				}
 			}
-			tempMap["remoteAddr"] = RemoveRep(Ipaddress)
-			tData, _ := json.Marshal(tempMap)
 
-			rdb.Set(ctx,"new_waf_blacklist", tData, 0)
-			//log.Println("new_waf_blacklist:", string(t_data))
-		}()
+			DomainList := RemoveRep(DL)
+			NewDomainListJson, _ := json.Marshal(DomainList)
 
-		// waf black
-		isWafBlack, _ := rdb.Get(ctx, "enable_waf_black").Result()
-		if isWafBlack == "1" {
-			newWafBlacklist, _ := rdb.Get(ctx, "new_waf_blacklist").Result()
-			oldWafBlacklist, _ := rdb.Get(ctx, "old_waf_blacklist").Result()
-			if oldWafBlacklist != newWafBlacklist {
-				log.Println("new_waf_blacklist:", newWafBlacklist, "old_waf_blacklist:", oldWafBlacklist)
-				// update old_waf_blacklist from new_waf_blacklist
-				rdb.Set(ctx, "old_waf_blacklist", newWafBlacklist, 0)
-				go Waf_blacklist(newWafBlacklist, Domain, wafRegion,accessKeyId, accessSecret)
-				log.Println("waf_blacklist:", newWafBlacklist)
+			// store domain list
+			rdb.Set(ctx,"protect:domains", NewDomainListJson, 0)
+
+			//log.Println("domainList:", DomainList)
+			// collect domain's attack ip address
+			for _, domain := range DomainList {
+				// key name: super_blacklist:www.google.com:*
+				rKey := BasePrefix + ":" + domain + ":*"
+				//log.Println("banList: scan redis key:", rKey)
+
+				var IP []string
+				for {
+					keys, cursor, err  := rdb.Scan(ctx,0, rKey, 200).Result()
+					if err != nil {
+						log.Println(err)
+					}
+					if len(keys) > 0 {
+						for _, i := range keys {
+							v := strings.Split(i, ":")
+							if len(v) == 3 {
+								IP = append(IP, v[2])
+							} else {
+								log.Println("banList: got illegality redis key:", i)
+							}
+						}
+					}
+					if cursor == 0 {
+						break
+					}
+				}
+
+				// store domain's black ip list to redis
+				t := RemoveRep(IP)
+				BlackIpList := strings.Join(t, ",")
+				DomainBanKeyName := "ban:" + domain
+				domainIpList, _ := json.Marshal(t)
+				//log.Println("DomainBanKeyName:", DomainBanKeyName, "iplist:", IP)
+				rdb.Set(ctx, DomainBanKeyName, domainIpList,0)
+
+				// write ip blacklist to cdn
+				// check set to cdn?
+				checkIpListKey := DomainBanKeyName + ":check"
+				oldIpList, _ := rdb.Get(ctx, checkIpListKey).Result()
+
+				if oldIpList != string(domainIpList) {
+					rdb.Set(ctx, checkIpListKey, domainIpList, 0)
+					log.Println("update cdn ip black list:", domain, BlackIpList)
+					go CdnBlackList(domain, BlackIpList, accessKeyId, accessSecret)
+				}
 			}
-		}
+			// get domains from redis key
+			//var M []string
+			//domains, _ := rdb.Get(ctx, "domains").Result()
+			//if err := json.Unmarshal([]byte(domains), &M); err == nil {
+			//}
+		}()
 
 		time.Sleep(time.Second * time.Duration(Interval))
 		if steps == 20 {
